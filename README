@@ -1,0 +1,17 @@
+File organisation:
+
+Python27
+    ???
+        papyllon_simulation library
+
+NAS
+    Mario
+        Simulation
+            (example) Driving effects
+                Scripts
+                    (example) semiclassical.py
+                    (example) quantum.py
+                Data
+                    000001_scriptName_timestamp
+                    000002_....
+                log.ppt
