@@ -10,24 +10,26 @@ class PapyllonSimulation(object):
         - Log everything in a power point       
 
     """
-    def __init__(self):
-        self.X_coord
-        self.X_start
-        self.X_end
-        self.X_points
-        self.Y_coord
-        self.Y_start
-        self.Y_end
-        self.Y_points
-        self.Z_coord
-        self.Z_start
-        self.Z_end
-        self.Z_points
+    def __init__(self, settings_list):
+        
+        self.load_settings(settings_variables)
 
         self.start_comments = ""
         self.end_comments = ""
 
         self.id = self.generate_id()
+
+    def generate_blank_settings(self):
+        pass
+        
+    def set_parameters(self,p):
+        pass
+        # set parameters depending on XYZ_value
+
+    def load_settings(self):
+        pass
+        # for every element in settings_variables (+core ones, XYZ_value etc..), search for the value in 
+        # settings.json (with queuing in mind)
 
     def generate_id(self):
         pass

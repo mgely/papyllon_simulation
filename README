@@ -1,17 +1,20 @@
 File organisation:
 
-Python27
-    ???
-        papyllon_simulation library
 
-NAS
-    Mario
-        Simulation
-            (example) Driving effects
-                Scripts
-                    (example) semiclassical.py
-                    (example) quantum.py
-                Data
-                    000001_scriptName_timestamp
-                    000002_....
-                log.ppt
+Papyllon_simulation
+    00_simulation_manager
+        papyllon_simulation.py
+        manager.py (TODO: GUI simulation queuing tool)
+        settings.JSON
+
+    (example) Driving effects
+        Scripts
+            (example) semiclassical.py
+            (example) quantum.py
+        Data
+            000001_scriptName_timestamp
+            000002_....
+        log.ppt
+
+    (example2) CPB
+    ....

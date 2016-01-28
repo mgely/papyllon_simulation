@@ -1,4 +1,5 @@
 *.pyc
+data/
 
 # =========================
 # DEFAULTS
@@ -52,3 +53,4 @@ $RECYCLE.BIN/
 Network Trash Folder
 Temporary Items
 .apdisk
+*.pptx
