@@ -8,6 +8,10 @@ import ttk
 import json
 from qutip import parfor
 import numpy as np
+from pptx import Presentation
+from pptx.util import Inches, Pt
+from shutil import rmtree,copyfile
+import signal
 
 class PapyllonSimulation(object):
     """
@@ -32,14 +36,34 @@ class PapyllonSimulation(object):
             'Y_name','Y_coord','Y_start','Y_end','Y_points',
             'Z_name','Z_coord','Z_start','Z_end','Z_points']
 
-        self.load_settings()
 
         self.start_commentsgithub = ""
         self.end_comments = ""
-        print 'here'
+        self.load_settings()
+
+    def run(self,parfunc):
         self.ask_for_setup_info()
-        print 'here2'
         self.set_simulation_data_path()
+        t0 = time.time()
+        self.generate_parameter_space()
+        raw_data = parfor(parfunc,self.parameter_space)
+        self.save_dat(raw_data)
+        self.generate_spyview_meta()
+        p = self.open_spyview()
+        t1 = time.time()
+        self.generate_timing_info(t0,t1)
+
+        response = self.ask_for_comments()
+        if response == -1:
+            os.kill(p.pid, signal.SIGINT)
+            time.sleep(0.1)
+            rmtree(self.simulation_data_path)
+        else:
+            self.end_comments = response
+            self.ask_for_png()
+            self.save_meta()
+            self.log_on_ppt()
+
 
 
     def generate_relevant_paths(self,path):
@@ -52,6 +76,7 @@ class PapyllonSimulation(object):
 
         self.settings_file_path = os.path.join(self.manager_path,"settings.json")
         self.spyview_path = self.global_setup["spyview_path"]
+        self.log_ppt = os.path.join(self.simulation_type_path,"log.pptx")
 
     def set_simulation_data_path(self):
         # Generate stamp
@@ -101,6 +126,7 @@ class PapyllonSimulation(object):
         np.savetxt(filename, output)
 
     def ask_for_comments(self):
+
         root = Tk()
         root.title("Comments?")
         root.lift()
@@ -112,12 +138,12 @@ class PapyllonSimulation(object):
 
         ttk.Label(mainframe,
             text = "Please enter comments for the logging powerpoint..."
-            ).grid(column = 0, row = 0, sticky = E)
+            ).grid(column = 0, row = 0, sticky = W)
 
         comments_entry = Text(mainframe,
             height = 13,
             font = ("Arial", "9"))
-        comments_entry.grid(column = 0, row = 0, sticky = (W, E))
+        comments_entry.grid(columnspan = 2, row = 1, sticky = (W, E))
 
         def done():
             self.tmp = str(comments_entry.get("1.0",'end-1c'))
@@ -126,15 +152,25 @@ class PapyllonSimulation(object):
         ttk.Button(mainframe,
             text = "Done",
             command = done
-            ).grid(column = 0, row = 1)
+            ).grid(column = 0, row = 2,sticky = E)
+
+
+        def discard():
+            self.tmp = -1
+            root.destroy()
+
+        ttk.Button(mainframe,
+            text = "Discard simulation",
+            command = discard
+            ).grid(column = 1, row = 2,sticky = W)
+
         root.mainloop()
 
         return self.tmp
 
     def open_spyview(self):
-        filename = os.path.join(self.simulation_data_path,
-                                "output.dat")
-        p = Popen([self.spyview_path,filename],stderr = PIPE)
+        filename = os.path.join(self.simulation_data_path,"output.dat")
+        return Popen([self.spyview_path,filename],stderr = PIPE, stdout=PIPE, shell=False)
 
     def generate_spyview_meta(self):
         filename = os.path.join(self.simulation_data_path,
@@ -173,14 +209,24 @@ class PapyllonSimulation(object):
 
         ttk.Label(mainframe,
             text = "Please generate a png file for the logging powerpoint..."
-            ).grid(column = 0, row = 0, sticky = E)
+            ).grid(column = 0, row = 0, sticky = W)
 
         ttk.Button(mainframe,
             text = "Done",
             command = root.destroy
             ).grid(column = 0, row = 1)
 
-        root.bind('<Return>',root.destroy)
+        def no_image():
+            dummy_file = os.path.join(self.manager_path,"dummy.png")
+            destination = os.path.join(self.simulation_data_path,"dummy.png")
+            copyfile(dummy_file,destination)
+            root.destroy()
+
+        ttk.Button(mainframe,
+            text = "No image",
+            command = no_image
+            ).grid(column = 1, row = 1)
+
         root.mainloop()
 
 
@@ -198,15 +244,90 @@ class PapyllonSimulation(object):
             json.dump(self.__dict__, f, sort_keys=True, indent=4, separators=(',', ': '))
 
     def log_on_ppt(self):
+        # TODO: add all pngs found in file (with spyview api)
         """
         In order of importance, include:
             filename/id
-            png 
+            png (dummy png if no data is found)
             settings
             before-after comment
             timing
         """
-        pass
+
+        # Check for existance of ppt
+
+        if not os.path.isfile(self.log_ppt):
+            template = os.path.join(self.manager_path, "log.pptx")
+            destination = os.path.join(self.simulation_type_path, "log.pptx")
+            copyfile(template,destination)
+
+        # find png
+        for file in os.listdir(self.simulation_data_path):
+            if file.endswith(".png") or file.endswith(".PNG"):
+                png = os.path.join(self.simulation_data_path, file)
+                    
+        # load the presentation
+        file_already_open = True
+        while file_already_open == True:
+            try: 
+                with open(self.log_ppt,'a') as f:
+                    pass
+                file_already_open = False
+            except IOError, e:
+                print str(e)
+
+                root = Tk()
+                root.title("Error opening file")
+                root.lift()
+                mainframe = ttk.Frame(root,padding = (3,3,3,3))
+                mainframe.grid(column = 0, row = 0, sticky = (N,W,E,S))
+
+                mainframe.columnconfigure(0,weight = 1)
+                mainframe.rowconfigure(0,weight = 1)
+
+                ttk.Label(mainframe,
+                    text = "Please close the raw data ppt: "+self.log_ppt
+                    ).grid(column = 0, row = 0, sticky = E)
+
+                ttk.Button(mainframe,
+                    text = "Done",
+                    command = root.destroy
+                    ).grid(column = 0, row = 1)
+                root.mainloop()
+
+        # add slide
+        prs = Presentation(self.log_ppt)
+        slide = prs.slides.add_slide(prs.slide_layouts[8])
+
+        title = slide.placeholders[0]
+        picture = slide.placeholders[1]
+        text = slide.placeholders[2]
+
+
+        title.text = self.start_comments + '\n' +\
+                    self.end_comments
+
+
+        #render settigs string
+        settings = ""
+        for arg in self.arg_list:
+            settings += arg
+            settings += " : "
+            settings += str(self.__dict__[arg])
+            settings += "\n"
+
+        text.text = self.detail + '\n' +\
+                "started: " + self.t_start + "\n" +\
+                "ended: " + self.t_stop + "\n" +\
+                "lasted: " + self.duration + "\n" +\
+                "Settings: \n" +\
+                settings
+
+
+        picture.insert_picture(png)
+
+        # save it
+        prs.save(self.log_ppt)
 
     def ask_for_setup_info(self):
                 
@@ -288,16 +409,3 @@ class PapyllonSimulation(object):
         print "Ended: "+ self.t_stop
         print "Measurement time: "+ self.duration
 
-    def run(self,parfunc):
-        t0 = time.time()
-        self.generate_parameter_space()
-        raw_data = parfor(parfunc,self.parameter_space)
-        self.save_dat(raw_data)
-        self.generate_spyview_meta()
-        self.open_spyview()
-        t1 = time.time()
-        self.generate_timing_info(t0,t1)
-        self.end_comments = self.ask_for_comments()
-        self.ask_for_png()
-        self.save_meta()
-        self.log_on_ppt()
