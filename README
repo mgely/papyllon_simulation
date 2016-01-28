@@ -12,8 +12,8 @@ Papyllon_simulation
             (example) semiclassical.py
             (example) quantum.py
         Data
-            000001_scriptName_timestamp
-            000002_....
+            timestamp_scriptName_name
+            timestamp_....
         log.ppt
 
     (example2) CPB

@@ -1,5 +1,5 @@
 from ??? import PapyllonSimulation
-s = PapyllonSimulation(['wc','g','delta','k','chi','xi','wd'])
+s = PapyllonSimulation(__file__,['wc','g','delta','k','chi','xi','wd'])
 
 def parfunc(p):
     s.set_parameters(p)
