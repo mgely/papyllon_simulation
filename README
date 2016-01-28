@@ -7,11 +7,11 @@ Papyllon_simulation
         manager.py (TODO: GUI simulation queuing tool)
         settings.JSON
 
-    (example) Driving effects
-        Scripts
+    (example) driving_effects
+        scripts
             (example) semiclassical.py
             (example) quantum.py
-        Data
+        sata
             timestamp_scriptName_name
             timestamp_....
         log.ppt

@@ -1,8 +1,13 @@
 import os
+import time
+import datetime
 from utility import byteify,gen_timestamp
-from subprocess import Popen
+from subprocess import Popen,PIPE
 from Tkinter import *
 import ttk
+import json
+from qutip import parfor
+import numpy as np
 
 class PapyllonSimulation(object):
     """
@@ -17,49 +22,56 @@ class PapyllonSimulation(object):
 
     """
     def __init__(self,path, settings_list):
-        with open("global.json","r") as f:
+        with open(os.path.join(os.path.dirname(__file__),"global.json"),"r") as f:
             self.global_setup =  byteify(json.load(f))
 
+        self.generate_relevant_paths(path)
 
-        self.arg_list = settings_variables +
+        self.arg_list = settings_list +\
             ['X_name','X_coord','X_start','X_end','X_points',
             'Y_name','Y_coord','Y_start','Y_end','Y_points',
             'Z_name','Z_coord','Z_start','Z_end','Z_points']
+
         self.load_settings()
 
         self.start_commentsgithub = ""
         self.end_comments = ""
-
+        print 'here'
         self.ask_for_setup_info()
-        generate_relevant_paths()
+        print 'here2'
+        self.set_simulation_data_path()
+
 
     def generate_relevant_paths(self,path):
 
         # Extract relevant paths
-        manager_path = os.path.split(__file__)[0]
-        scripts_path = os.path.split(path)[0]
-        simulation_type_path = os.path.split(scripts_path)[0]
+        self.manager_path = os.path.split(__file__)[0]
+        self.scripts_path = os.path.split(path)[0]
+        self.simulation_type_path = os.path.split(self.scripts_path)[0]
+        self.script_name = os.path.split(path)[1].split('.')[0]
 
+        self.settings_file_path = os.path.join(self.manager_path,"settings.json")
+        self.spyview_path = self.global_setup["spyview_path"]
+
+    def set_simulation_data_path(self):
         # Generate stamp
         stamp = ""
         stamp += gen_timestamp()
         stamp += "__"
 
-        self.script_name = os.path.split(path)[1].split('.')[0]
         stamp += self.script_name
         stamp += "__"
 
         stamp += self.detail
 
-        # Fill in relevant paths
-        self.settings_file_path = os.path.join(manager_path,"settings.json")
-        self.simulation_data_path = os.path.join(simulation_type_path,"data",stamp)
-        self.spyview_path = self.global_setup["spyview_path"]
+        
+        self.simulation_data_path = os.path.join(self.simulation_type_path,"data",stamp)
+        os.mkdir(self.simulation_data_path)
         
     def set_parameters(self,p):
-        setattr(self, X_name, p[0])
-        setattr(self, Y_name, p[1])
-        setattr(self, Z_name, p[2])
+        setattr(self, self.X_name, p[0])
+        setattr(self, self.Y_name, p[1])
+        setattr(self, self.Z_name, p[2])
 
     def load_settings(self):
         with open(self.settings_file_path,"r") as f:
@@ -74,18 +86,18 @@ class PapyllonSimulation(object):
 
             setattr(self, arg, value)
 
-    def parameter_space():
-        parameter_space = []
-        for X in np.linspace(X_start,X_end,X_coord):
-            for Y in np.linspace(Y_start,Y_end,Y_coord):
-                for Z in np.linspace(Z_start,Z_end,Z_coord):
-                    parameters.append([X,Y,Z])
-        return parameter_space
+    def generate_parameter_space(self):
+        self.parameter_space = []
+        for X in np.linspace(self.X_start,self.X_end,self.X_points):
+            for Y in np.linspace(self.Y_start,self.Y_end,self.Y_points):
+                for Z in np.linspace(self.Z_start,self.Z_end,self.Z_points):
+                    self.parameter_space.append([X,Y,Z])
 
     def save_dat(self, raw_data): 
         filename = os.path.join(self.simulation_data_path,
                                 "output.dat")
-        output = np.c_[parameters, data]
+        output = np.c_[self.parameter_space, raw_data]
+        print output
         np.savetxt(filename, output)
 
     def ask_for_comments(self):
@@ -107,40 +119,42 @@ class PapyllonSimulation(object):
             font = ("Arial", "9"))
         comments_entry.grid(column = 0, row = 0, sticky = (W, E))
 
+        def done():
+            self.tmp = str(comments_entry.get("1.0",'end-1c'))
+            root.destroy()
+
         ttk.Button(mainframe,
             text = "Done",
-            command = root.destroy
+            command = done
             ).grid(column = 0, row = 1)
         root.mainloop()
 
-        root.bind('<Return>',root.destroy)
-
-        return str(comments_entry.get("1.0",'end-1c'))
+        return self.tmp
 
     def open_spyview(self):
         filename = os.path.join(self.simulation_data_path,
                                 "output.dat")
-        p = Popen([self.spyview_path,filename])
+        p = Popen([self.spyview_path,filename],stderr = PIPE)
 
     def generate_spyview_meta(self):
         filename = os.path.join(self.simulation_data_path,
                                 "output.meta.txt")
         with open(filename,'w') as meta:
             meta.write("#inner loop"+"\n")
-            meta.write(str(X_points)+"\n")
-            meta.write(str(X_start)+"\n")
-            meta.write(str(X_end)+"\n")
-            meta.write(X_coord+"\n")
+            meta.write(str(self.X_points)+"\n")
+            meta.write(str(self.X_start)+"\n")
+            meta.write(str(self.X_end)+"\n")
+            meta.write(self.X_coord+"\n")
             meta.write("#outer loop"+"\n")
-            meta.write(str(Y_points)+"\n")
-            meta.write(str(Y_start)+"\n")
-            meta.write(str(Y_end)+"\n")
-            meta.write(Y_coord+"\n")
+            meta.write(str(self.Y_points)+"\n")
+            meta.write(str(self.Y_start)+"\n")
+            meta.write(str(self.Y_end)+"\n")
+            meta.write(self.Y_coord+"\n")
             meta.write("#outer most loop"+"\n")
-            meta.write(str(Z_points)+"\n")
-            meta.write(str(Z_start)+"\n")
-            meta.write(str(Z_end)+"\n")
-            meta.write(Z_coord+"\n")
+            meta.write(str(self.Z_points)+"\n")
+            meta.write(str(self.Z_start)+"\n")
+            meta.write(str(self.Z_end)+"\n")
+            meta.write(self.Z_coord+"\n")
             meta.write("#values"+"\n")
             meta.write(str(1)+"\n")
             meta.write("Computed"+"\n")
@@ -165,11 +179,12 @@ class PapyllonSimulation(object):
             text = "Done",
             command = root.destroy
             ).grid(column = 0, row = 1)
-        root.mainloop()
 
         root.bind('<Return>',root.destroy)
+        root.mainloop()
 
-    def save_meta(self, t_start, t_stop):
+
+    def save_meta(self):
         """
         In a JSON file, store:
             timing information
@@ -202,7 +217,7 @@ class PapyllonSimulation(object):
         root.lift()
 
         # Put a main frame in the root, which has a padding (NWES)
-        mainframe = ttk.Frame(self.root,padding = (3,3,3,3))
+        mainframe = ttk.Frame(root,padding = (3,3,3,3))
 
         # Put it in column 0, row 0 of the root and have it stick 
         # to all sides upon resizing
@@ -218,7 +233,7 @@ class PapyllonSimulation(object):
         detail = StringVar()
         detail_entry = ttk.Entry(mainframe,
             width = entry_width,
-            textvariable = self.detail)
+            textvariable = detail)
         detail_entry.grid(column = 1, row = 0, sticky = (W, E))
 
 
@@ -238,16 +253,16 @@ class PapyllonSimulation(object):
             text = "Data saved in .../simulation_type/data/(time_stamp)_script_detail"
             ).grid(columnspan = 2, row = 2, sticky = W)
 
-        
+        def start():
+            self.start_comments = str(comments_entry.get("1.0",'end-1c'))
+            self.detail = str(detail.get())
+            root.destroy()
 
         # Button that calls the function
         ttk.Button(mainframe,
             text = "Start",
-            command = root.destroy
+            command = start
             ).grid(column = 2, row = 3, sticky = W)
-
-        # # Keyboard shortcut for start
-        root.bind('<Return>',root.destroy)
 
         # Configure all the widgets to have the same padding
         for child in mainframe.winfo_children():
@@ -263,22 +278,20 @@ class PapyllonSimulation(object):
         # Go
         root.mainloop()
 
-        self.start_comments = str(comments_entry.get("1.0",'end-1c'))
-        self.detail = str(detail.get())
-
     def generate_timing_info(self,t0,t1):
 
-        self.start_str = str(time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(t0)))
-        self.end_str = str(time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(t1)))
+        self.t_start = str(time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(t0)))
+        self.t_stop = str(time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(t1)))
         self.duration = str(datetime.timedelta(seconds=t1 - t0))
 
-        print "Started: "+start_str
-        print "Ended: "+end_str
-        print "Measurement time: "+duration
+        print "Started: "+ self.t_start
+        print "Ended: "+ self.t_stop
+        print "Measurement time: "+ self.duration
 
     def run(self,parfunc):
         t0 = time.time()
-        raw_data = parfor(parfunc,self.parameter_space())
+        self.generate_parameter_space()
+        raw_data = parfor(parfunc,self.parameter_space)
         self.save_dat(raw_data)
         self.generate_spyview_meta()
         self.open_spyview()

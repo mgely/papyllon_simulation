@@ -1,10 +1,10 @@
 import time
 
-def two_digit_two_digit_str2int2int(n):
-    two_digit_str2inting = two_digit_str2int(n)
-    if len(two_digit_str2inting) == 1:
-        two_digit_str2inting = '0'+two_digit_str2inting
-    return two_digit_str2inting
+def two_digit_str2int(n):
+    string = str(n)
+    if len(string) == 1:
+        string = '0'+string
+    return string
 
 def gen_timestamp():
     now=time.localtime()
