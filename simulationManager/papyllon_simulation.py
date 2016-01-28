@@ -6,7 +6,7 @@ from subprocess import Popen,PIPE
 from Tkinter import *
 import ttk
 import json
-from qutip import parfor
+from qutip import parallel_map
 import numpy as np
 from pptx import Presentation
 from pptx.util import Inches, Pt
@@ -46,7 +46,7 @@ class PapyllonSimulation(object):
         self.set_simulation_data_path()
         t0 = time.time()
         self.generate_parameter_space()
-        raw_data = parfor(parfunc,self.parameter_space)
+        raw_data = parallel_map(parfunc,self.parameter_space, progress_bar = True)
         self.save_dat(raw_data)
         self.generate_spyview_meta()
         p = self.open_spyview()
@@ -63,6 +63,8 @@ class PapyllonSimulation(object):
             self.ask_for_png()
             self.save_meta()
             self.log_on_ppt()
+            copyfile(os.path.join(self.manager_path,"settings.json"),
+                    os.path.join(self.simulation_data_path,"settings.json"))
 
 
 
