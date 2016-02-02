@@ -42,34 +42,36 @@ class PapyllonSimulation(object):
         self.detail = ""
         self.load_settings()
 
-    def run(self,parfunc):
+    def run(self,parfunc,debug = False):
         # self.ask_for_setup_info()
         t0 = time.time()
         self.generate_parameter_space()
 
         # debugging
-        parfunc(self.parameter_space[0])
+        if debug:
+            parfunc(self.parameter_space[0])
 
-        raw_data = parallel_map(parfunc,self.parameter_space, progress_bar = True)
-        self.set_simulation_data_path()
-        self.save_dat(raw_data)
-        self.generate_spyview_meta()
-        p = self.open_spyview()
-        t1 = time.time()
-        self.generate_timing_info(t0,t1)
+        if not debug:
+            raw_data = parallel_map(parfunc,self.parameter_space, progress_bar = True)
+            self.set_simulation_data_path()
+            self.save_dat(raw_data)
+            self.generate_spyview_meta()
+            p = self.open_spyview()
+            t1 = time.time()
+            self.generate_timing_info(t0,t1)
 
-        response = self.ask_for_comments()
-        if response == -1:
-            os.kill(p.pid, signal.SIGINT)
-            time.sleep(0.3)
-            rmtree(self.simulation_data_path)
-        else:
-            self.end_comments = response
-            self.ask_for_png() 
-            self.save_meta()
-            self.log_on_ppt()
-            copyfile(os.path.join(self.manager_path,"settings.json"),
-                    os.path.join(self.simulation_data_path,"settings.json"))
+            response = self.ask_for_comments()
+            if response == -1:
+                os.kill(p.pid, signal.SIGINT)
+                time.sleep(0.3)
+                rmtree(self.simulation_data_path)
+            else:
+                self.end_comments = response
+                self.ask_for_png() 
+                self.save_meta()
+                self.log_on_ppt()
+                copyfile(os.path.join(self.manager_path,"settings.json"),
+                        os.path.join(self.simulation_data_path,"settings.json"))
 
     def generate_relevant_paths(self,path):
 

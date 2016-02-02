@@ -62,4 +62,4 @@ def parfunc(p):
     
 
 if __name__ == "__main__":
-    s.run(parfunc)
+    s.run(parfunc,debug = False)
