@@ -37,16 +37,21 @@ class PapyllonSimulation(object):
             'Z_name','Z_coord','Z_start','Z_end','Z_points']
 
 
-        self.start_commentsgithub = ""
+        self.start_comments = ""
         self.end_comments = ""
+        self.detail = ""
         self.load_settings()
 
     def run(self,parfunc):
-        self.ask_for_setup_info()
-        self.set_simulation_data_path()
+        # self.ask_for_setup_info()
         t0 = time.time()
         self.generate_parameter_space()
+
+        # debugging
+        parfunc(self.parameter_space[0])
+
         raw_data = parallel_map(parfunc,self.parameter_space, progress_bar = True)
+        self.set_simulation_data_path()
         self.save_dat(raw_data)
         self.generate_spyview_meta()
         p = self.open_spyview()
@@ -56,17 +61,15 @@ class PapyllonSimulation(object):
         response = self.ask_for_comments()
         if response == -1:
             os.kill(p.pid, signal.SIGINT)
-            time.sleep(0.1)
+            time.sleep(0.3)
             rmtree(self.simulation_data_path)
         else:
             self.end_comments = response
-            self.ask_for_png()
+            self.ask_for_png() 
             self.save_meta()
             self.log_on_ppt()
             copyfile(os.path.join(self.manager_path,"settings.json"),
                     os.path.join(self.simulation_data_path,"settings.json"))
-
-
 
     def generate_relevant_paths(self,path):
 
@@ -76,7 +79,7 @@ class PapyllonSimulation(object):
         self.simulation_type_path = os.path.split(self.scripts_path)[0]
         self.script_name = os.path.split(path)[1].split('.')[0]
 
-        self.settings_file_path = os.path.join(self.manager_path,"settings.json")
+        self.settings_file_path = os.path.join(self.scripts_path,self.script_name+".json")
         self.spyview_path = self.global_setup["spyview_path"]
         self.log_ppt = os.path.join(self.simulation_type_path,"log.pptx")
 
@@ -115,9 +118,9 @@ class PapyllonSimulation(object):
 
     def generate_parameter_space(self):
         self.parameter_space = []
-        for X in np.linspace(self.X_start,self.X_end,self.X_points):
+        for Z in np.linspace(self.Z_start,self.Z_end,self.Z_points):
             for Y in np.linspace(self.Y_start,self.Y_end,self.Y_points):
-                for Z in np.linspace(self.Z_start,self.Z_end,self.Z_points):
+                for X in np.linspace(self.X_start,self.X_end,self.X_points):
                     self.parameter_space.append([X,Y,Z])
 
     def save_dat(self, raw_data): 
@@ -216,7 +219,7 @@ class PapyllonSimulation(object):
         ttk.Button(mainframe,
             text = "Done",
             command = root.destroy
-            ).grid(column = 0, row = 1)
+            ).grid(column = 0, row = 1, sticky = E)
 
         def no_image():
             dummy_file = os.path.join(self.manager_path,"dummy.png")
@@ -230,7 +233,6 @@ class PapyllonSimulation(object):
             ).grid(column = 1, row = 1)
 
         root.mainloop()
-
 
     def save_meta(self):
         """
@@ -299,34 +301,31 @@ class PapyllonSimulation(object):
 
         # add slide
         prs = Presentation(self.log_ppt)
-        slide = prs.slides.add_slide(prs.slide_layouts[8])
-
-        title = slide.placeholders[0]
-        picture = slide.placeholders[1]
-        text = slide.placeholders[2]
-
-
+        slide = prs.slides.add_slide(prs.slide_layouts[6])
+        title_box = slide.shapes.add_textbox(0, 0, Pt(960), Pt(140))
+        title = title_box.text_frame.add_paragraph()
         title.text = self.start_comments + '\n' +\
                     self.end_comments
+        title.font.size = Pt(14)
+        title.font.bold = True
 
+        with open(self.settings_file_path) as f:
+            settings = json.dumps(byteify(json.load(f)),indent=4)
 
-        #render settigs string
-        settings = ""
-        for arg in self.arg_list:
-            settings += arg
-            settings += " : "
-            settings += str(self.__dict__[arg])
-            settings += "\n"
-
-        text.text = self.detail + '\n' +\
+        content_box = slide.shapes.add_textbox(0, Pt(140), Pt(480), Pt(400))
+        content = content_box.text_frame.add_paragraph()
+        content.text = self.detail + '\n' +\
+                "script: " + self.script_name + '\n' +\
                 "started: " + self.t_start + "\n" +\
                 "ended: " + self.t_stop + "\n" +\
                 "lasted: " + self.duration + "\n" +\
                 "Settings: \n" +\
                 settings
+        content.font.size = Pt(10)
+        content.font.bold = False
 
+        slide.shapes.add_picture(png, Pt(480),  Pt(140),Pt(480), Pt(400))
 
-        picture.insert_picture(png)
 
         # save it
         prs.save(self.log_ppt)
@@ -409,5 +408,5 @@ class PapyllonSimulation(object):
 
         print "Started: "+ self.t_start
         print "Ended: "+ self.t_stop
-        print "Measurement time: "+ self.duration
+        print "It lasted: "+ self.duration
 
